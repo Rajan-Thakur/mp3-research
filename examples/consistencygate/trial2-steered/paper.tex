@@ -1,0 +1,152 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,booktabs,graphicx,natbib,hyperref,microtype}
+\usepackage{xcolor}
+\hypersetup{colorlinks=true,urlcolor=blue,citecolor=blue,linkcolor=blue}
+\setlength{\parskip}{4pt}
+\emergencystretch=2em
+\title{A null test of adaptive admission for ConsistencyGate on a near-deterministic verifier}
+\author{[Author block]}
+\date{}
+
+\begin{document}
+\sloppy
+\maketitle
+
+\begin{abstract}
+ConsistencyGate admits a candidate memory fact only when the mean of $K{=}5$ verifier scores clears $\tau{=}0.7$ \citep{consistencygate}. An adaptive variant could spend the calls saved by early stopping on candidates near the threshold. We tested this on one near-deterministic verifier (Haiku) and 42 templated synthetic items, replaying 240 saved draws from a 30-item corpus and 96 from a 12-item corpus. The adaptive rule was triggered on one of the 42 items and changed no decision. A separate 18-item check, drawn once, admitted no corrupted item. Fixed $K{=}2$ gave the same decisions as $K{=}5$ at 2 calls on these items. We therefore report a null test and a cost note, not a method result. No contamination or recall effect of the rule was measured.
+\end{abstract}
+
+\section{Introduction}
+Write-time admission decides which facts an agent stores in memory. ConsistencyGate scores each candidate with $K$ verifier samples and admits it when the mean score reaches $\tau$ \citep{consistencygate}. Adaptive stopping rules are established for majority voting over answers \citep{adaptiveconsistency} and for escalating to a second verifier only on uncertain cases \citep{verifywhenuncertain}. To our knowledge, among the sources we fetched, their application to a threshold on soft admission scores is not addressed. This note tests that application on one verifier (Haiku) and 42 synthetic templated items, and reports no measured contamination or recall effect. A separate 18-item debug set, drawn once, is reported separately.
+
+The scope is narrow. One verifier (Haiku), synthetic templated items, and 42 evaluated items. The test measures whether an adaptive rule changes admission decisions on the saved draws. It does not measure contamination or recall of a deployed memory, and it makes no claim about multi-turn conversational memory or about whether $K{=}5$ is better or worse than $K{=}1$ or $K{=}2$. The v2 plan was fixed before any v2 draw; the slice stop rule was fixed after the 18-draw debug set and before the slice draws. The fixed-$K$ ladder and the group breakdown were added after review, as zero-call tabulations of saved draws.
+
+\section{Related work}
+ConsistencyGate treats write-time admission as a correctness problem and contrasts it with utility- and novelty-based admission \citep{consistencygate}. A recent admission-control framework scores candidate memories on learned utility components, and it reports that admission remains weakly specified in agent architectures \citep{amac}. Neither line addresses how many verifier samples a threshold decision needs.
+
+Self-consistency samples several outputs and aggregates them by vote, which is the basis for using repeated sampling as a signal \citep{selfconsistency}. Adaptive-Consistency stops sampling once the answer votes agree, and reports that it reduces the sample budget by up to 7.9 times across 17 reasoning and code generation datasets \citep{adaptiveconsistency}. Verify-when-Uncertain uses self-consistency first and calls a second verifier only where the first signal is uncertain \citep{verifywhenuncertain}. Our setting differs in one respect: the decision is a threshold on a mean of soft scores, not a vote, so the stopping question is about the bounds on that mean. We reuse the bounds argument of the sequential literature, and we do not claim a new stopping rule.
+
+\section{Setup}
+\textbf{Gate and prompt.} The verifier is the soft-scoring prompt of the ConsistencyGate paper (Appendix C), used verbatim with Haiku. Scores are parsed from the reply. The CLI exposes no temperature control, so draws are repeated calls at the default setting; independence of draws is assumed but not tested.
+
+\textbf{Arms.} (a) admit-all; (b) fixed $K$ for $K\in\{1,\dots,5\}$; (c) exact early-stop $K{=}5$, which uses the bounds on a sum of scores in $[0,1]$ to stop at 2--5 calls and gives the same decisions as fixed $K{=}5$ by construction; and (d) the reallocation rule: exact early-stop, then draws 6--8 only for candidates still undecided at 5 draws whose mean lies in $[0.6,0.8]$. On the v1 items the nearest fixed-$K$ comparison for (d) is $K{=}3$, which averages 3.00 calls against 3.27 for (d). The pre-registered matched control was fixed $K{=}4$ (the plan's §2d); the plan's §11 amendment replaced it with the nearest-call fixed-$K$ arm, which is $K{=}3$ here. A bootstrap over items of the difference between (d) and fixed $K{=}3$ is degenerate ($[0,0]$), because the two agree on every item.
+
+\textbf{Exact early stopping.} Let $s_1,\dots,s_5\in[0,1]$ be the draws and $S_n=\sum_{k\le n}s_k$. The gate admits iff $S_5/5\ge 0.7$, that is $S_5\ge 3.5$. Because each draw lies in $[0,1]$, the remaining $5-n$ draws add at least $0$ and at most $5-n$. Hence the decision is fixed once
+\begin{align}
+S_n&\ge 3.5 \quad\text{(admit)},\\
+S_n+(5-n)&<3.5 \quad\text{(reject)}.
+\end{align}
+Written out for $n\in\{2,3,4\}$, the reject conditions are $S_2<0.5$, $S_3<1.5$ and $S_4<2.5$, and admission at $n{=}4$ needs $S_4\ge 3.5$. These tests are exact: they return the same decision as fixed $K{=}5$ on the same draws, and they only change the number of calls. The arm is therefore a cost change, not a change of rule.
+
+\textbf{Reallocation.} The rule runs exact early stopping. If an item is still undecided after five draws and its mean lies in $[0.6,0.8]$, it is a straddler; the rule draws three more scores and admits iff the mean of all eight is at least $0.7$. The band is a design choice. Its width determines how many items can be affected, and we report how many were.
+
+\textbf{Corpora.} v1 has 30 templated items (the first 30 in file order of a 72-item corpus; 17 correct, 13 corrupted), each drawn 8 times. The 72-item corpus was not completed: the ceiling rule (contamination at $K{=}5$ below 5\%) and the variance stop rule, both from the v1 analysis plan (written before analysis, not before collection), fired on the first 30. The v2 corpus uses inference-required facts: a 12-item slice (6 correct, 6 corrupted; taken in corpus order as three two-step, two one-step and one explicit item per label, \texttt{slice12\_ids.json}), drawn 8 times, and an 18-item debug set (9 correct, 9 corrupted), drawn once. The slice replaced a planned 288-call part 1 after all 18 single draws in the debug set separated the labels; this was written down and approved before it ran. Corpora are seeded and labelled by construction. Appendix~\ref{app:stop} gives the rules.
+
+\textbf{Metrics.} Contamination is admitted corrupted items divided by admitted items. Recall is admitted correct items divided by correct items. Calls are verifier calls per item.
+
+\section{Results}
+\textbf{Decisions.} Table~\ref{tab:ladder} gives the fixed-$K$ ladder and the adaptive arms on both sets. Every gated arm admitted no corrupted item on the 42 evaluated items; admit-all admits 13 of 30 (v1) and 6 of 12 (slice) corrupted items. The reallocation rule was triggered on one item (v1 item imp-00, whose 5-draw mean is 0.62) and changed no decision. Fixed $K{=}1$ disagrees with $K{=}5$ on that same item: a single first draw of 0.7 admits it, and its 8-draw mean is 0.575. On these draws fixed $K{=}1$ has recall 13/17 and $K{=}5$ has 12/17, at equal contamination (0 of the admitted items).
+
+\begin{table}[t]
+\centering
+\caption{Fixed-$K$ ladder and adaptive arms. Post hoc, zero-call tabulation of saved draws. ``Disagree'' counts items whose decision differs from fixed $K{=}5$.}
+\label{tab:ladder}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llcccc}
+\toprule
+Set & Arm & Contaminated/admitted & Recall (correct) & Mean calls & Disagree \\
+\midrule
+v1 (30) & fixed $K{=}1$ & 0/13 & 13/17 & 1.00 & 1 \\
+v1 (30) & fixed $K{=}2$ & 0/12 & 12/17 & 2.00 & 0 \\
+v1 (30) & fixed $K{=}3$ & 0/12 & 12/17 & 3.00 & 0 \\
+v1 (30) & fixed $K{=}4$ & 0/12 & 12/17 & 4.00 & 0 \\
+v1 (30) & fixed $K{=}5$ & 0/12 & 12/17 & 5.00 & -- \\
+v1 (30) & exact-stop $K{=}5$ & 0/12 & 12/17 & 3.17 (95/150) & 0 \\
+v1 (30) & reallocation & 0/12 & 12/17 & 3.27 (98/150) & 0 \\
+v2 slice (12) & fixed $K{=}1$ to $5$ & 0/6 & 6/6 & 1.00 to 5.00 & 0 \\
+v2 slice (12) & exact-stop; reallocation & 0/6 & 6/6 & 3.00; 3.00 & 0 \\
+v2 debug (18, one draw) & fixed $K{=}1$ & 0/9 & 9/9 & 1.00 & n/a \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Reading the ladder.} The ladder has no power on contamination: every fixed $K$ from 1 to 5 admitted zero corrupted items, so contamination cannot separate the arms here. Recall and calls are the only columns that vary, and they vary only through the single disagreement on v1 item imp-00. The v2 slice behaves the same way: all arms agree on all 12 items. The comparison of K=1 with K=5 is therefore a comparison of one item, and we do not read a preference from it.
+
+\textbf{Draws.} Figure~\ref{fig:draws} shows all eight draws per item. On v1, 177 of 240 draws (74\%) are 0 or 1 and 39 (16\%) are exactly 0.5. On the slice, all 96 draws are 0 or 1. Pooled over all 336 draws, 273 are 0 or 1. Five correct implicit v1 facts were rejected. Two of them (\texttt{imp-09}, \texttt{imp-13}) received 0.5 on every draw. The other three had within-item SD 0.03--0.17 (\texttt{imp-16}, \texttt{imp-00}, \texttt{imp-06}), so resampling changed none of these decisions. The other four v1 misses have 5-draw means of 0.5 or below, so the rule could not fire on them. On v2, all 11 correct implicit items scored 1.0 on every draw they received (5 slice items with 8 draws; 6 debug items with one draw), so the v1 recall failure did not reappear.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{figures/fig1_draws.pdf}
+\caption{Saved verifier scores, all eight draws per item: 30 v1 items (top) and 12 v2 slice items (bottom). Dots are jittered vertically. Red: the five correct v1 implicit items the gate rejected. Blue: other correct items. Gray: corrupted items. Dashed line: the v1/v2 boundary; dotted line: $\tau{=}0.7$. In v1, 74\% of draws are 0 or 1 and 16\% are exactly 0.5; all 96 slice draws are 0 or 1. No new calls were made.}
+\label{fig:draws}
+\end{figure}
+
+\textbf{Why the v2 items did not separate the arms.} The v2 items were built to need an inference step, with two-step facts and a distractor sentence. The verifier still scored them as unanimous: correct and corrupted items were separated at one draw and at eight. The v1 misses were all backward subtractions (a descriptive pattern), and v2 used forward additions only, so v2 did not test that pattern. This is a limitation of the design, not evidence about the method.
+
+\textbf{Cost.} Exact early-stop used 95 of 150 calls on v1 (36.7\% below fixed $K{=}5$) and reallocation used 98 (34.7\%). On the slice both used 3.00 of 5.00 calls (40\%). Under bimodal draws the saving follows $(1+2f)/5$, where $f$ is the fraction of items stopping at two calls. On v1, $f{=}12/30$ gives 36.0\%, which is consistent with the measured 36.7\%; the difference is one call in total: two items stopped at three calls (one corrupted, one correct) and one correct item took five. The slice has $f{=}0.5$ and gives 40\%. Figure~\ref{fig:formula} shows the curve with these two points. The formula assumes each item stops at two calls or at four. It is derived from the stopping bounds, not fitted to these data, and it is checked at two points only.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\linewidth]{figures/fig3_formula.pdf}
+\caption{Saving against fixed $K{=}5$ as a function of $f$, the fraction stopping at two calls. The curve is the formula $(1+2f)/5$. The two points are consistent with it.}
+\label{fig:formula}
+\end{figure}
+
+\textbf{Where the verifier misses.} Of the eight correct implicit v1 items, the three that depend on forward addition were all admitted. The five that depend on backward subtraction (year minus age or minus gap) were all rejected. Family and direction are confounded in v1, and five misses on eight items support no causal claim (Appendix~\ref{app:breakdown}).
+
+\section{Discussion and limitations}
+On this verifier the rule could not be evaluated: an adaptive rule can only change a decision when draws disagree, and here they almost never do. This is a statement about this verifier and these items, not about the method in general.
+
+\textbf{Exploratory, post hoc.} At $\tau{=}0.5$, four of the five v1 misses are admitted. K=5 then has recall 16/17 with 0/16 contaminated, and $K{=}1$ has recall 16/17 with 1/17 contaminated. These 0.5 draws sit exactly on the threshold, so the result depends on the $\ge$ tie rule. The threshold was chosen after the outcomes were seen. It needs a fresh pre-registration before any claim.
+
+\textbf{Limitations.} (i) One verifier, Haiku, with a Sonnet reviewer from the same model family (review labelled same-family / provisional). (ii) The gate is our reimplementation with the paper's prompt. The arXiv page has no code link, and the abstract's claim of a code release was not verified. (iii) Templated synthetic text with one or two arithmetic steps. (iv) Small samples: 30, 18 and 12 items. The 0-error bounds (one-sided 95\%) on the admission rate are 18.1\% for the 15 v2 corrupted items, 28.3\% for the 9 in the debug set, and 10.1\% for the 28 corrupted items pooled across v1 and v2 (the pooled figure mixes arms and corpora). These are not i.i.d. error rates. (v) Draws are assumed independent but not tested; within-item draws are near-deterministic. (vi) The 12-item slice closes the test only for those 12 items: at a 10\% straddler rate, a slice of 12 would show none about 28\% of the time. (vii) The log-probability variant of the paper cannot be reproduced through a CLI without logprobs and is not evaluated.
+
+\textbf{What would change the conclusion.} The rule can only matter where draws disagree on the same item. A verifier with real variance (for example a model sampled at non-zero temperature), a corpus with ambiguous support, or a test with enough straddlers would each give the rule something to do. A fresh pre-registration would need to fix the straddler band and the number of items in advance, and report the flip count beside every rate.
+
+\textbf{Implications for practice.} Where a verifier returns near-deterministic scores, fixed $K{=}2$ matched a $K{=}5$ gate here at lower cost; $K{=}1$ disagreed on one item, so we do not recommend it. That conclusion requires checking the verifier's draw distribution on the deployment data first. The exact bounds are cheap to implement and do not change decisions, so they can be used whenever the draws are not known in advance.
+
+\section{Conclusion}
+On one near-deterministic verifier and 42 templated synthetic items, an adaptive admission rule for ConsistencyGate changed no admission decision. Fixed $K{=}2$ gave the same decisions as $K{=}5$ at 2 calls on these items. The cost result is arithmetic on the stopping bounds and depends on how often items stop at two calls. We did not measure a contamination or recall effect of the rule, and the test could not have shown one on these draws.
+
+\appendix
+\section{Stop rules and pre-registration}\label{app:stop}
+The plan was written before any v2 draw (\texttt{EXPERIMENT\_PLAN.md}). The v1 analysis plan was written before any v1 main-run draw was analysed, not before they were collected (\texttt{ANALYSIS\_PLAN.md}). Its checks were: a ceiling rule (contamination at $K{=}5$ below 5\%, stop and report); a floor rule (contamination at $K{=}5$ at least 45\%, run invalid); and a variance stop (fewer than three straddlers and no decision flip on the first 30 items, stop). The ceiling and variance rules fired on v1. The flip rule for the v2 test means zero flips yields a cost-only result. Amendment A1 added the $n{=}4$ reject to the exact-stop rule after the first v1 analysis was seen and before any v2 draw. Earlier exact-stop and reallocation costs of 3.27 and 3.37 predate A1; the current values are 3.17 and 3.27 (Table~\ref{tab:before}).
+
+\begin{table}[h]
+\centering
+\caption{Costs before and after amendment A1 (the $n{=}4$ reject). Mean calls per item on the 30 v1 items.}
+\label{tab:before}
+\begin{tabular}{lcc}
+\toprule
+Arm & Before A1 & After A1 \\
+\midrule
+Exact-stop $K{=}5$ & 3.27 & 3.17 (95/150) \\
+Reallocation & 3.37 & 3.27 (98/150) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Group breakdown (v1, post hoc, descriptive)}\label{app:breakdown}
+\begin{table}[h]
+\centering
+\caption{Correct implicit v1 items by family and arithmetic direction, under the K{=}5 gate. Post hoc and descriptive: 5 misses on 8 items.}
+\label{tab:breakdown}
+\begin{tabular}{llcc}
+\toprule
+Family & Direction & Admitted & Rejected \\
+\midrule
+bio & backward (year minus age) & 0 & 2 \\
+project & backward (year minus gap) & 0 & 3 \\
+probe & forward (launch plus travel) & 3 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Deviations and call accounting}
+Calls: 374 of 2{,}500 in total. The breakdown is 20 (v1 debug, 20 candidates by 1 draw), 240 (v1 main, 30 by 8), 18 (debug set, 18 by 1) and 96 (slice, 12 by 8). The 12-item slice replaced a planned 288-call part 1; this was data-informed and approved before it ran. The derived numbers above are reproduced by a script over the saved draws (\texttt{results/derived\_numbers.txt}); the imp-00 means are in \texttt{results/main/analysis\_part1.txt}.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+\end{document}

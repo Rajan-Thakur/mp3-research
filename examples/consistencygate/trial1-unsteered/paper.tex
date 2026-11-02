@@ -1,0 +1,78 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\title{Does a Polarity-Mixed Admission Gate Reduce Memory Contamination?\\A Reimplementation Study with a Ceiling Effect}
+\author{Anonymous}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+ConsistencyGate \cite{consistencygate} admits a candidate memory fact only when the mean of $K{=}5$ support scores from a verifier LLM reaches $\tau{=}0.7$. We reimplement this gate, since no public code exists, and test a single modification: three support-view votes and two votes asking whether the fact is \emph{not} supported, all at the same five-call budget. We evaluate the paper gate on three synthetic biography-style corpora (the third with single-vote checks only), and the modification and a paraphrase control on the first, with \texttt{claude-haiku-5-5} as the verifier. Across 128 items in three corpora (32 items in an initial set, 48 in a near-miss set, and 48 single-vote screen items over three alternative designs), the paper gate admits no incorrect fact in any of the five designs we tried (the K=5 gate on two corpora, and single-vote checks on three screen designs). Because the baseline has zero false admits, the modification cannot be shown to help, and the data give no evidence for or against it. We report this as a negative result about the testbed: the synthetic corpora we built sit at ceiling for the Haiku verifier we tested, and a discriminating test needs a different verifier or corpus.
+\end{abstract}
+
+\section{Introduction}
+Write-time admission control filters what an agent stores in long-term memory, so that contaminated facts are not reused later. ConsistencyGate \cite{consistencygate} implements this as a self-consistency check: each candidate fact receives $K{=}5$ soft support scores in $[0,1]$ from a verifier, and the fact is admitted when their mean is at least $\tau{=}0.7$. The paper reports that on its MemContam benchmark, contamination falls from 50\% to ``a near-oracle 1.2\% contamination at 100\% recall''. The paper also reports weaker gains on real conversations, and it describes its MemContam results as ``an internal-consistency upper bound rather than a deployment headline'' because the verifier shares a model family with the generator and one corruption type appends a literal contradiction.
+
+This report asks whether a simple change to the vote composition improves on the paper gate at equal cost. The hypothesis was that averaging $K$ samples of one prompt cannot remove a bias the prompt shares across its samples, and that mixing the polarity of the question might reduce it. We found that the testbed cannot answer the question. We report the reimplementation, the three test corpora, and the ceiling effect, with the numbers from the result files.
+
+\section{Method}
+\paragraph{Paper gate (baseline).} For a candidate fact $m$ in source context $c$, we draw five votes $s_1,\dots,s_5\in[0,1]$ with the support prompt S: ``How strongly is this candidate fact supported by the source context above? Do not use outside knowledge.'' The fact is admitted iff $\bar{s}\ge 0.7$. The paper's verbatim verifier prompt is in its Appendix C, which was not reached in our fetch; our S is reconstructed from the paper's quoted key sentence and is a deviation from the original.
+
+\paragraph{Polarity-mixed gate (proposed).} Three votes use S. Two votes use the not-supported prompt U: ``How strongly is this candidate fact NOT supported by the source context above (the source is silent on it, or contradicts it)?'' Their scores enter the mean as $1-u$. Total cost is five calls per fact, the same as the baseline. We first specified a contradiction-only prompt, which gives a silent source a full vote; the change to U was made before any run and is recorded in our notes.
+
+\paragraph{Paraphrase control.} Five paraphrases of S. This separates the effect of polarity from the effect of prompt diversity.
+
+\paragraph{Corpora.} All corpora are generated from a fixed seed. Ground truth is set by construction: a fact is correct iff the source entails it. Corpus~1 has 8 contexts with four items each: explicit correct facts, implicit correct facts, contradicted facts, and unsupported but plausible facts (32 items, 16 correct). Corpus~2 has 12 contexts: explicit, multi-hop correct facts (e.g.\ ``at least 18 years old when moved''), near-miss contradictions (a year off by one, a wrong city, a wrong job), and near-miss unsupported facts (48 items, 24 correct). Corpus~3 is a screen of three designs (wrong entity, temporal, retraction), 16 items each, scored with one vote per item.
+
+\paragraph{Verifier and budget.} Every model call goes through \texttt{claude -p} with \texttt{claude-haiku-5-5}, with a hard cap of 2,500 calls. We used 788 calls in total: 500 for Corpus~1 (including a 20-call debug run), 240 for the Corpus~2 baseline, and 48 for the screen. The pre-registered rule for Corpus~2 was that the baseline's false-admit rate on incorrect items must lie between 0.10 and 0.60 before the modification is tested; otherwise the run stops.
+
+\section{Results}
+\paragraph{Corpus 1 (32 items).} Table~\ref{tab:c1} gives the results. The paper gate and both modifications admit 16 facts and no incorrect fact (contamination 0.00, recall 1.00). Admit-all has contamination 0.50. The paper gate versus admit-all has a paired item-bootstrap 95\% CI of $[-0.69,-0.34]$ for the change in contamination, with an exact McNemar test $p=3\times10^{-5}$ on 16 discordant items. The paper gate versus the modification has zero discordant items. Mean per-item vote standard deviation is 0.008 (paper gate), 0.018 (modification), and 0.012 (control), so the five votes of one gate barely vary. The minimum margin between the lowest correct and highest incorrect mean score is 0.888, 0.874 and 0.926 for the three gates; AUROC is 1.00 for all three.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Arm & Admitted (of 32) & Contamination & Recall & Calls/fact\\
+\midrule
+Admit-all & 32 & 0.50 & 1.00 & 0\\
+Paper gate ($K{=}5$, $\tau{=}0.7$) & 16 & 0.00 & 1.00 & 5\\
+Polarity-mixed (proposed) & 16 & 0.00 & 1.00 & 5\\
+Paraphrase control & 16 & 0.00 & 1.00 & 5\\
+\bottomrule
+\end{tabular}
+\caption{Corpus~1 (32 items, 16 correct). Source: \texttt{results/memcontam/analysis.json}.}
+\label{tab:c1}
+\end{table}
+
+\paragraph{Corpus 2 (48 items, near-miss).} The paper gate's false-admit rate on the 24 incorrect items is 0.00. Its per-class mean scores are 0.98--1.00 for explicit correct facts, 0.90--0.99 for multi-hop correct facts, at most 0.02 for near-miss contradictions, and at most 0.02 for near-miss unsupported facts. The margin is 0.88, the vote SD 0.006, and AUROC 1.00. Because the baseline's false-admit rate lies outside the pre-registered band, the modification, the paraphrase control and the contradiction-only variant were not run.
+
+\paragraph{Screen (48 calls, three designs).} For the wrong-entity, temporal and retraction designs, a single-vote check of the paper gate's rule (not the K=5 gate) gives a false-admit rate of 0.00 on the eight incorrect items of each design. Incorrect scores are at most 0.02 for the first two designs and at most 0.05 for the third. No design lies in the band, so no design went on to the main test.
+
+\section{Discussion}
+Three corpora, 128 items in total, and one verifier produced one pattern: on the K=5 corpora the paper gate admits every correct fact and no incorrect fact, with margins of 0.87--0.93 (Corpus~1) and 0.88 (Corpus~2); on the single-vote screen the margins are 0.85--0.98. The paper's own MemContam result (a ``near-oracle 1.2\% contamination at 100\% recall'', from its introduction) is not reproduced here: our corpus and verifier differ from the paper's. Our baseline reaches zero contamination on our templates, which is not evidence that the gate works on deployment data.
+
+The ceiling has three consequences for any modification of the vote composition. First, there is no contamination for a modification to remove. Second, the votes are nearly deterministic (SD about 0.01), so averaging five votes adds little information on these items; the premise that $K$ samples reduce noise is not exercised. Third, the paraphrase control confirms only that rephrasing the prompt does not change the decision on these items.
+
+The paper's own caveats point to where a discriminating test might lie. Its verifier shares a family with the generator, and its real-conversation results show smaller gains (contamination 34.1\% on LoCoMo-Contam with Qwen2.5-32B, a figure we took from a model-extracted summary and have not verified against the full text). We could not test these settings: the contract allowed only Haiku as the verifier, and our corpora are generated from templates, which may be easier than real conversations.
+
+\section{Limitations}
+\begin{itemize}
+\item Synthetic, templated facts written by the same author who proposed the modification. Ground truth is exact, but the difficulty may not match natural text.
+\item One verifier (\texttt{claude-haiku-5-5}, through \texttt{claude -p}). The paper used Qwen2.5-32B and other models; we did not reproduce its verifier comparison.
+\item The support prompt is a reconstruction, not the paper's Appendix C prompt, which was not reached in our fetch.
+\item 32, 48 and 48 items (the last a single-vote screen). Confidence intervals are wide where they are defined.
+\item The log-probability variant of the paper cannot be reproduced through \texttt{claude -p}, which exposes no logprobs; we do not report it.
+\item Related work beyond the ConsistencyGate paper is not covered in this report.
+\end{itemize}
+
+\section{Conclusion}
+A polarity-mixed admission gate at equal cost cannot be shown to help or hurt on our synthetic corpora with the Haiku verifier, because the paper gate already admits no incorrect fact in any design we tried (the K=5 gate on two corpora, and single-vote checks on the screen). A test that can discriminate needs a verifier or corpus at which the baseline makes errors. We report the reimplementation, the three corpora, and the ceiling as the result.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{1}
+\bibitem{consistencygate} ConsistencyGate: Preventing Memory Contamination in LLM Agents via Self-Consistency Admission Control. arXiv:2607.22962 (v1, 25 July 2026). \url{https://arxiv.org/abs/2607.22962}. Fetched in this run from \url{https://arxiv.org/html/2607.22962}; the text beyond about 45\% was a model-extracted summary, so numbers other than those quoted in the introduction are not verified against the full text.
+\end{thebibliography}
+\end{document}
