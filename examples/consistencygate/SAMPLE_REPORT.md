@@ -1,6 +1,6 @@
 # MP3 Final Report (SAMPLE): ConsistencyGate, written by the instructor from the two trial runs
 
-> **Read this before copying anything.** This sample fills the report template from the instructor's two pipeline trials on November 2, 2026, with trial 1 as run A and trial 2 as run B. The "student" in run B was a model (Claude Sonnet) playing a student, so section 3 shows the *shape* of a steering account and would earn 0 authorship points if a student submitted it. Every pointer below is into `examples/consistencygate/` or the trial folders it was copied from. Your report must point into your own repository.
+> **Read this before copying anything.** This sample fills the report template from the instructor's two pipeline trials on November 2, 2026, with trial 1 as run A and trial 2 as run B; sections 5b and 5c were added when the written report replaced the presentation. The "student" in run B was a model (Claude Sonnet) playing a student, so section 3 shows the *shape* of a steering account and would earn 0 authorship points if a student submitted it. Every pointer below is into `examples/consistencygate/` or the trial folders it was copied from. Your report must point into your own repository.
 
 ## 1. The paper and why I chose it (C1, eligibility)
 - Base paper: *ConsistencyGate: Preventing Memory Contamination in LLM Agents via Self-Consistency Admission Control*, Zhang et al., arXiv:2607.22962, v1 2026-07-25, 24 pages, code: none (gate reimplemented).
@@ -68,6 +68,16 @@ From `trial2-steered/PAPER_CLAIM_AUDIT.md` and the paper-writing audit (`analysi
 - Claims wider than the evidence: "reproduced", "harder designs", "capable verifier" and "perfect separation" were softened to what 18 single draws and 42 items support; "null by construction" became "null on these draws".
 - AI-slop passages: a reference to a non-existent "gate E"; a venue claim ("ICLR") that overstated what a 7-page note is. Removed.
 - Checks that found nothing: K=5 and τ=0.7 match the paper's §4.1; the paired bootstrap recomputes from `results/main/analysis_part1.txt`.
+
+## 5b. Design explanations, written (R2)
+- **Why this method change:** the paper spends five identical verifier calls on every fact, including facts whose first draws are already 0.0 or 1.0; reallocating draws to straddlers should save calls where they are wasted and spend them where a decision can flip (`trial2-steered/NARRATIVE_REPORT.md` §Question). Trade-off: it only helps if draws vary; on a deterministic verifier it changes nothing, which is what happened.
+- **Why these controls and this budget:** admit-all gives the floor, the paper's K=5 gate is the baseline, and fixed K=2/K=3 are call-matched controls so a saving can be attributed to the rule rather than to fewer calls (`trial2-steered/EXPERIMENT_PLAN.md:12-15`). Budget: 30 items × 8 draws, then a pre-registered 96-call slice instead of 288 calls once the debug run showed perfect separation (G6). Trade-off: a 12-item slice is under-powered, stated as a limitation.
+- **What ARIS and the reviewer did, and why I kept or changed it:** the reviewer's round-1 point that fixed K=2 matches exact-stop's decisions at 2.00 calls (`trial2-steered/AUTO_REVIEW.md` round 1) was accepted and became the paper's central table; its request for a third round was declined because the fixes were wording I could verify in the file (G8). Kept: the same-family "provisional" label.
+
+## 5c. Evidence questions, answered in writing (R3)
+- **Q1.** Decision 2 above: the agent proposed the 288-call part 1; I checked `results/v2/debug.jsonl` (18 of 18 draws exactly 0.0 or 1.0) and cut it to a 96-call pre-registered slice. Bearing: it saved 192 calls and turned a likely ceiling repeat into a stated stop rule.
+- **Q2.** Weakest point: every corpus was templated synthetic text on which Haiku is almost deterministic, so the allocation idea was never actually tested. The test that would settle it: the same four arms on a conversation corpus like the paper's LoCoMo-Contam (recall 0.58 in the paper); five or more discordant items would make the question answerable.
+- **Q3.** Abstract: "fixed K=2 matches K=5 at 2.00 calls against 3.17". Source: `results/main/analysis_part1.txt` (exact-stop mean calls 3.17 = 95/150 draws over 30 items; K=2 = 2.00 by construction); recall 12/17 for both (`NUMBER_CHECK.md`).
 
 ## 6. Result and limitations (C2, C4)
 - Result: the reimplemented gate removed all 16 incorrect facts at full recall against admit-all (Δ contamination −0.50, 95% CI [−0.69, −0.34], 0 vs 16 discordant). The proposed reallocation changed 0 decisions in 42 items (paired CI [0, 0], 0 discordant), so it could not be evaluated. Cost-only finding: fixed K=2 matches K=5 decisions at 2.00 calls per fact instead of 5.00.

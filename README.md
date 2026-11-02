@@ -1,12 +1,14 @@
 # IPHS 400 · Mini-Project 3: AI Research Factory
 
 **Kenyon College, Fall 2026 · Frontiers in AI · 10% of the course grade**
-**Assigned Monday, November 2 · Due Sunday, November 8, 2026, 11:59 pm Eastern, on Moodle**
+**Assigned Monday, November 2 · Due Tuesday, November 17, 2026, before class at 2:40 pm Eastern, on Moodle · No presentation: a written report takes its place**
 **Instructor: Jon Chun · This repository is private to the class; your own project lives in a separate private repo (manual Part 1).**
 
 ![Who decides what: the student at every gate, the Haiku executor, the Sonnet reviewer](figures/mp3-fig1-pipeline.svg)
 
 ## What you will do
+
+> **Plan ahead.** This project will stretch your AI usage. Expect to hit your Pro plan's 5-hour window more than once and to spread the agent runs over several windows and several days. You have two weekends and office hours the week before the deadline: work backwards from Tuesday November 17, 2:40 pm, and never leave a run for the last window. If your budget only stretches to run A, that is an acceptable, documented submission.
 
 You will take a recent arXiv **methods** paper on a technique we studied in class, use the open-source [ARIS](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep) research skills inside Claude Code to find a gap and propose one improvement, run a small controlled experiment with Claude Haiku as the model under test, and write a short methods paper that you audit by hand. The agent proposes; you question, decide, check and polish. A careful negative result earns full marks.
 
@@ -19,7 +21,7 @@ You run the pipeline **twice on the same paper**:
 | Agent time, cost (instructor's pilots) | 56 min, $2.40–3.20 | 72 min, $4.00–7.50 |
 | Where it lives | `runs/A/`, tag `mp3-run-a` | project root, tag `mp3-ai-draft` → `mp3-final` |
 
-Your **final report** (`REPORT.md`) scores both runs with the rubric's judge prompt, explains every difference with a file pointer, lists your three steering decisions, and records what your own audit found in the AI-written draft: numbers that did not trace, references that did not resolve, claims wider than the evidence, AI slop you removed.
+Your **final report** (`REPORT.md`, a quarter of the raw score) scores both runs with the rubric's judge prompt, explains every difference with a file pointer, lists your three steering decisions, answers the three design and three evidence questions in writing, and records what your own audit found in the AI-written draft: numbers that did not trace, references that did not resolve, claims wider than the evidence, AI slop you removed.
 
 ![Run A unguided, then run B guided, then the comparison in your report](figures/mp3-fig2-two-runs.svg)
 
@@ -28,8 +30,8 @@ Your **final report** (`REPORT.md`) scores both runs with the rubric's judge pro
 | # | File | What it is for |
 |---|---|---|
 | 1 | [`mp3-what-to-expect.md`](mp3-what-to-expect.md) | One page: the project, the paper rule, measured costs, how the instructor's two runs scored item by item, the week. Read this first. |
-| 2 | [`mp3-self-guided-manual-v5.md`](mp3-self-guided-manual-v5.md) | The step-by-step manual, checkpoints CP0–CP8, every command tested in the instructor's pilots. |
-| 3 | [`mp3-grading-rubric-v5.md`](mp3-grading-rubric-v5.md) | Every point: 21 items in five factors, the two penalties, the judge contract the instructor's grader uses, and how the raw score becomes your grade. |
+| 2 | [`mp3-self-guided-manual-v6.md`](mp3-self-guided-manual-v6.md) | The step-by-step manual, checkpoints CP0–CP8, every command tested in the instructor's pilots. |
+| 3 | [`mp3-grading-rubric-v6.md`](mp3-grading-rubric-v6.md) | Every point: 20 items in five factors (the fifth is the written report), the two penalties, the judge contract the instructor's grader uses, and how the raw score becomes your grade. |
 | 4 | [`mp3-report-template.md`](mp3-report-template.md) | Copy to `REPORT.md` in your project and fill all seven sections. |
 | 5 | [`mp3-paper-search-prompt.md`](mp3-paper-search-prompt.md) | A prompt that searches arXiv for eligible papers by topic, and a second prompt that argues against your pick before you commit. Both are also embedded in manual §2.1. |
 | 6 | [`examples/consistencygate/`](examples/consistencygate/README.md) | The worked example (below). |
@@ -41,13 +43,13 @@ Choose a **recent, short, simple methods paper, about 6–9 pages in total, on o
 
 ## Budget, and what to do if it runs out
 
-Your Claude Pro plan covers your own reading, questioning and auditing. A separate **Anthropic API key with $20 of prepaid credit, auto-reload off**, pays for the pipeline (manual §0.1 sets it up so $20 is a hard ceiling). Plan on about $10; the two pilot runs together cost $6.40–10.70. Check the console balance before and after every session: at **$10** stop and cut scope; at **$15** stop and email the instructor; if Pro and the $20 are both exhausted, stop, keep your ledger and see the instructor. A documented stop earns the partial credit the rubric allows.
+Your Claude Pro plan covers your own reading, questioning and auditing. A separate **Anthropic API key with $20 of prepaid credit, auto-reload off**, pays for the pipeline (manual §0.1 sets it up so $20 is a hard ceiling). If you cannot open an API console account (it needs a payment card), run everything on Pro with waits at the 5-hour resets; no instructor keys are issued. Plan on about $10; the two pilot runs together cost $6.40–10.70. Check the console balance before and after every session: at **$10** stop and cut scope; at **$15** stop and email the instructor; if Pro and the $20 are both exhausted, stop, keep your ledger and see the instructor. A documented stop earns the partial credit the rubric allows.
 
 ![Budget: Pro for your work, the capped key for the pipeline; measured costs and stop thresholds](figures/mp3-fig3-budget.svg)
 
 ## How you are graded
 
-The rubric produces a **raw score** out of 100 from 21 items (Functionality 15, Technical Proficiency 20, Documentation 15, Creativity and Extension 25, Presentation 25, the last from a recorded video of at most 8 minutes). A first-line LLM judge proposes each item's score with `path:line` evidence; the instructor confirms every one. Two penalties are subtracted after human confirmation: fabricated references (−3 each, cap −9) and AI slop on two sampled pages (−3 or −5).
+The rubric produces a **raw score** out of 100 from 20 items (Functionality 15, Technical Proficiency 20, Documentation 15, Creativity and Extension 25, Report 25). There is no presentation, in class or on video; the report's written design explanations and evidence questions replace it. A first-line LLM judge proposes each item's score with `path:line` evidence; the instructor confirms every one. Two penalties are subtracted after human confirmation: fabricated references (−3 each, cap −9) and AI slop on two sampled pages (−3 or −5).
 
 Under this project's token limits raw scores are expected in the **40s–60s**: the instructor's own two runs scored 44 and 57 before any student-only work. Your MP3 grade is the raw score **normalized across the class**: the two highest and two lowest raw scores are set aside, the rest are scaled so the best of them is 100, and the same scale applies to everyone, capped at 100 (expected factor about 2). This rule is published now, so a raw 45 is not a surprise and not a failure. Do the work in the manual; do not chase the raw number.
 
@@ -71,10 +73,9 @@ Both runs ended in an honest null result: the paper's own method was already per
 
 - A private GitHub repository the instructor can open, with tags `mp3-run-a`, `mp3-ai-draft` and `mp3-final`.
 - `paper/paper.md` and `paper/paper.pdf` (4–8 pages before references), `REPORT.md`, `README.md` with your Generative AI Use Statement, the `notes/` files the manual names, `runs/A/`, raw results and the offline replay (`make smoke`).
-- A recorded video of at most 8 minutes, in your own voice, in place of an in-class presentation.
-- The Moodle submission with the repo URL, final commit SHA and the video.
+- The Moodle submission with the repo URL and final commit SHA, before 2:40 pm on Tuesday November 17.
 
-![The week by checkpoint](figures/mp3-fig5-week.svg)
+![Two weeks, planned backwards from Tuesday November 17](figures/mp3-fig5-week.svg)
 
 ## Questions
 
